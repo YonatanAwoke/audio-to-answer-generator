@@ -1,1 +1,51 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
 .env
+env/
+.env.*
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Logs
+*.log
+logs/
+*.out
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# FPDF / temporary exports
+*.pdf
+*.docx
+*.md
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Python test outputs
+.coverage
+htmlcov/
+pytest_cache/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+
+# Misc
+*.tmp
+*.bak
+*.swp
