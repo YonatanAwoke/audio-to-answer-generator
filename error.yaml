@@ -1,0 +1,9 @@
+issue_summary: |
+  The pipeline crashes while saving the PDF because FPDF raises an error:
+  "Not enough horizontal space to render a single character."
+  This happens in `save_as_pdf` when calling:
+    pdf.multi_cell(0, 10, txt=f"Options: {', '.join(q['options'])}")
+  Likely cause: Long strings (like options or answers) without spaces, or using width=0 in multi_cell.
+  Task affected: PDF generation.
+  Needed fix: Use explicit width for multi_cell (e.g., page_width - 20),
+  wrap/trim long strings, or use pdf.set_font and pdf.multi_cell with proper margins.

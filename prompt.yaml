@@ -1,0 +1,69 @@
+# Audio-to-Answer Pipeline Specification
+project: Audio-to-Answer Pipeline
+description: |
+  A multi-agent system that processes lecture recordings (audio input)
+  and generates structured answers. The pipeline consists of agents
+  for transcription, question extraction, and answer generation.
+  The system integrates external tools for transcription, NLP, and
+  LLM-powered reasoning.
+
+requirements:
+  agents:
+    - name: Audio Transcriber
+      role: Convert raw audio (mp3, wav, etc.) into clean text using
+            a speech-to-text tool (e.g., Whisper).
+      input: audio file
+      output: plain text transcript
+
+    - name: Question Splitter
+      role: Analyze transcript text and extract questions.
+            Handle multiple question formats: multiple-choice,
+            true/false, short-answer, and open-ended reasoning.
+      input: transcript text
+      output: structured JSON list of questions with type metadata
+
+    - name: Answer Generator
+      role: Generate accurate answers for each extracted question
+            using LLM reasoning and optional tool integration.
+      input: structured questions
+      output: structured answers (JSON or formatted text)
+
+  tools:
+    - Speech-to-Text (Whisper or API-based)
+    - NLP Preprocessing (spaCy, NLTK, or custom splitter)
+    - LLM (Gemini API, OpenAI, etc.)
+    - Optional: Export answers to PDF, Markdown, or plain text
+
+  orchestration:
+    framework: LangGraph or CrewAI
+    coordination: Sequential execution with structured message passing
+                  (transcript → questions → answers).
+    optional_features:
+      - Human-in-the-loop: user can verify/edit extracted questions
+      - Communication protocol: MCP for standardized tool-agent interaction
+      - Evaluation: benchmark transcription accuracy and answer quality
+
+workflow:
+  1. User uploads an audio file (lecture recording, podcast, etc.).
+  2. Audio Transcriber converts speech into text transcript.
+  3. Question Splitter parses transcript and extracts structured questions.
+  4. Answer Generator uses LLM to generate answers for extracted questions.
+  5. Final answers are exported in the requested format (plain text, PDF, JSON).
+
+output_format:
+  - JSON:
+      transcript: "string"
+      questions:
+        - id: "q1"
+          type: "multiple-choice | true/false | short-answer | open-ended"
+          text: "question text"
+          options: ["optional choices"]
+      answers:
+        - qid: "q1"
+          answer: "string"
+  - PDF/Text: formatted document with transcript, questions, and answers
+
+use_case: |
+  A student uploads a lecture recording. The system transcribes the lecture,
+  extracts questions (practice questions or exam-style), and generates
+  structured answers. Output can be exported to study guides or notes.

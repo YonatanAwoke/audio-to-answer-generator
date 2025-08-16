@@ -1,0 +1,18 @@
+{
+    "audio_file": "new.mp3",
+    "transcript": "Today we will discuss the difference between renewable and non-renewable energy sources. Renewable energy, such as solar and wind, can be naturally replenished and is sustainable in the long term. Non-renewable energy, like coal and oil, is finite and contributes heavily to climate change. The key question is, how can countries transition from non-renewable to renewable sources effectively?\n",
+    "questions": [
+        {
+            "id": "q1",
+            "type": "open-ended",
+            "text": "How can countries transition from non-renewable to renewable sources effectively?",
+            "options": []
+        }
+    ],
+    "answers": [
+        {
+            "qid": "q1",
+            "answer": "Effective energy transitions require a multi-pronged approach encompassing:  1) **Significant policy support:**  This includes carbon pricing, feed-in tariffs, renewable portfolio standards, and streamlined permitting processes. 2) **Massive investment:**  Funding is crucial for R&D, infrastructure development (e.g., smart grids, transmission lines), and deployment of renewable technologies. 3) **Technological advancements:** Continued innovation is needed to improve efficiency, reduce costs, and address intermittency issues of renewables. 4) **Public acceptance and engagement:**  Addressing concerns about land use, visual impact, and potential job displacement is vital for building social license. 5) **International cooperation:** Sharing best practices, technologies, and financial resources across borders is essential.  6) **Strategic workforce development:** Training and retraining programs are necessary to equip the workforce with the skills needed for the new energy sector.  Failure to address any of these elements significantly hinders the transition's success."
+        }
+    ]
+}
