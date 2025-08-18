@@ -5,4 +5,4 @@ Here is the question:
 {question}
 ---
 
-Provide the best possible answer.
+Provide the best possible answer. Answer in the same language as the question.

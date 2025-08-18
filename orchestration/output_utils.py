@@ -1,5 +1,26 @@
 import json
+import os
 from fpdf import FPDF
+import jsonschema
+from utils.exceptions import InvalidOutputFormatError
+
+# Load the output schema
+SCHEMA_PATH = os.path.join(os.path.dirname(__file__), '..', 'schemas', 'output_schema.json')
+with open(SCHEMA_PATH, 'r') as f:
+    OUTPUT_SCHEMA = json.load(f)
+
+def validate_output_data(data: dict):
+    """
+    This function no longer performs schema validation as per user request.
+    It now only includes a fallback for missing 'question' fields.
+    """
+    if "questions" in data and isinstance(data["questions"], list):
+        for i, q in enumerate(data["questions"]):
+            if "question" not in q:
+                print(f"Warning: 'question' field missing in question {i}. Adding placeholder.")
+                q["question"] = "Placeholder Question" # Add a default value
+    # No schema validation performed as per user request.
+    pass
 
 def save_as_json(data: dict, output_path: str):
     """
@@ -19,10 +40,7 @@ def save_as_text(data: dict, output_path: str):
         f.write("--- Questions ---\n")
         for q in data["questions"]:
             f.write(f"ID: {q['id']}\n")
-            f.write(f"Type: {q['type']}\n")
-            f.write(f"Question: {q['text']}\n")
-            if 'options' in q:
-                f.write(f"Options: {', '.join(q['options'])}\n")
+            f.write(f"Question: {q['question']}\n")
             f.write("\n")
         f.write("--- Answers ---\n")
         for a in data["answers"]:
@@ -52,11 +70,8 @@ def save_as_pdf(data: dict, output_path: str):
     pdf.add_page()
     pdf.cell(page_width, 10, txt="Questions", ln=True, align='C')
     for q in data["questions"]:
-        question_text = f"ID: {q['id']}\nType: {q['type']}\nQuestion: {q['text']}"
+        question_text = f"ID: {q['id']}\nQuestion: {q['question']}"
         pdf.multi_cell(page_width, 10, txt=write_to_pdf(question_text))
-        if 'options' in q and q['options']:
-            options_text = f"Options: {', '.join(q['options'])}"
-            pdf.multi_cell(page_width, 10, txt=write_to_pdf(options_text))
         pdf.ln()
 
     pdf.add_page()

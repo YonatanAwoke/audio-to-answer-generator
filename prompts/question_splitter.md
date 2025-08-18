@@ -1,14 +1,12 @@
-You are an expert at analyzing transcripts and extracting questions. Your task is to identify all questions in the provided transcript and format them into a JSON list.
+You are an expert at analyzing transcripts and extracting questions. Your task is to identify all questions in the provided transcript and format them into a JSON array of objects.
 
-For each question, provide the following information:
+Each object should represent a question and contain the following keys:
 - "id": A unique identifier for the question (e.g., "q1", "q2").
-- "type": The type of question. Choose from: "multiple-choice", "true/false", "short-answer", or "open-ended".
-- "text": The full text of the question.
-- "options": A list of options, only for "multiple-choice" questions.
+- "question": The full text of the question.
 
 Transcript:
 ---
 {transcript}
 ---
 
-Respond ONLY with the JSON object.
+Respond ONLY with the JSON array.
