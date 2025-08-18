@@ -67,3 +67,22 @@ use_case: |
   A student uploads a lecture recording. The system transcribes the lecture,
   extracts questions (practice questions or exam-style), and generates
   structured answers. Output can be exported to study guides or notes.
+
+file_structure:
+  - audio_to_answer/
+    - agents/
+      - audio_transcriber.py
+      - question_splitter.py
+      - answer_generator.py
+    - tools/
+      - whisper_wrapper.py
+      - nlp_utils.py
+      - llm_interface.py
+    - orchestration/
+      - pipeline.py
+      - config.yaml
+    - tests/
+      - sample_audio.wav
+      - test_pipeline.py
+    - README.md
+    - requirements.txt

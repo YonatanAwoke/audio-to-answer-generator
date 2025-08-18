@@ -1,4 +1,3 @@
-
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -24,18 +23,4 @@ def transcribe_audio(audio_path: str) -> str:
     # Clean up the uploaded file
     genai.delete_file(audio_file.name)
 
-    return response.text
-
-def invoke_llm(prompt_path: str, llm_input: dict) -> str:
-    """
-    Invokes the Gemini API with a prompt and input.
-    """
-    print(f"Invoking LLM with prompt: {prompt_path}")
-    with open(prompt_path, "r") as f:
-        prompt_template = f.read()
-    
-    prompt = prompt_template.format(**llm_input)
-    
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    response = model.generate_content(prompt)
     return response.text
