@@ -54,6 +54,7 @@ def validate_audio_file(audio_file_path: str):
 
 
 from agents.audio_enhancer_agent import audio_enhancer_agent
+from agents.diarization_agent import diarization_agent
 from agents.audio_transcriber import audio_transcriber_agent
 from agents.question_splitter import question_splitter_agent
 from agents.answer_generator import answer_generator_agent
@@ -67,28 +68,42 @@ class AppState(TypedDict):
     answers: List[dict]
     language: Optional[str]
     enhance_audio: bool
+    speaker_timestamps: List[dict]
+    speaker_transcripts: List[dict]
 
 # Build the graph
 workflow = StateGraph(AppState)
 
 workflow.add_node("enhancer", audio_enhancer_agent)
+workflow.add_node("diarizer", diarization_agent)
 workflow.add_node("transcriber", audio_transcriber_agent)
 workflow.add_node("splitter", question_splitter_agent)
 workflow.add_node("generator", answer_generator_agent)
 
-workflow.add_edge("enhancer", "transcriber")
+workflow.add_edge("enhancer", "diarizer")
+workflow.add_edge("diarizer", "transcriber")
 workflow.add_edge("transcriber", "splitter")
-workflow.add_edge("splitter", "generator")
+workflow.add_conditional_edges(
+    "splitter",
+    lambda state: "generator" if state.get("questions") else END,
+    {"generator": "generator", END: END}
+)
 workflow.add_edge("generator", END)
 
 def should_enhance(state: AppState):
-    return "enhancer" if state.get("enhance_audio") else "transcriber"
+    return "enhancer" if state.get("enhance_audio") else "diarizer"
 
 workflow.set_conditional_entry_point(should_enhance)
 
 app = workflow.compile()
 
 def main():
+    from huggingface_hub import login
+    hf_token = os.getenv("HF_TOKEN")
+    if hf_token:
+        login(token=hf_token)
+    else:
+        print("Warning: HF_TOKEN environment variable not set. Diarization might fail if the model requires authentication.")
     parser = argparse.ArgumentParser(description="Audio-to-Answer Pipeline")
     parser.add_argument("audio_file", help="Path to the audio file to process.")
     parser.add_argument("--output_format", choices=["json", "text", "pdf"], default="json", help="Desired output format.")
@@ -110,6 +125,10 @@ def main():
 
         # Run the pipeline
         final_state = app.invoke(initial_state)
+
+        if not final_state.get("questions"):
+            print("No valid questions found in the audio.")
+            return
 
         # Save the output
         if args.output_format == "json":

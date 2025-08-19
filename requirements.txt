@@ -6,3 +6,6 @@ fpdf
 langchain
 ffmpeg
 jsonschema
+pyannote.audio
+torch
+torchaudio
