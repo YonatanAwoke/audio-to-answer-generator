@@ -37,10 +37,19 @@ def is_potential_question(sentence: str, language: str = 'en') -> bool:
     if sentence.endswith('?'):
         return True
 
-    # Check for question words at the beginning
     question_words = QUESTION_WORDS.get(language, [])
-    for word in question_words:
-        if sentence.startswith(word + ' '):
-            return True
+
+    # Check for question words at the beginning
+    if any(sentence.startswith(word + ' ') for word in question_words):
+        return True
+
+    # Check for inverted questions (e.g., "is this a question?")
+    if any(sentence.startswith(word + ' ') for word in ['is', 'are', 'do', 'does', 'did', 'can', 'could', 'will', 'would', 'should']):
+        return True
+
+    # Check for question words anywhere in the sentence
+    if any(f' {word} ' in sentence for word in question_words):
+        return True
+
 
     return False

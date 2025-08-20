@@ -9,3 +9,6 @@ jsonschema
 pyannote.audio
 torch
 torchaudio
+better_profanity
+demjson
+spacy

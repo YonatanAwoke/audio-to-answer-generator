@@ -7,8 +7,8 @@ from utils.exceptions import LargeFileError, UnsupportedAudioFormatError, Unsupp
 
 # Constants for audio validation
 MAX_AUDIO_FILE_SIZE_MB = 500  # 500 MB
-SUPPORTED_AUDIO_FORMATS = ['mp3', 'wav', 'flac', 'm4a']
-SUPPORTED_AUDIO_CODECS = ['mp3', 'pcm_s16le', 'flac', 'aac']
+SUPPORTED_AUDIO_FORMATS = ['mp3', 'wav', 'flac', 'm4a', 'ogg']
+SUPPORTED_AUDIO_CODECS = ['mp3', 'pcm_s16le', 'flac', 'aac', 'opus']
 from typing import TypedDict, List, Optional
 
 def validate_audio_file(audio_file_path: str):
@@ -53,6 +53,7 @@ def validate_audio_file(audio_file_path: str):
         raise CorruptAudioError(f"An unexpected error occurred during audio file analysis: {e}")
 
 
+from agents.profanity_agent import profanity_agent
 from agents.audio_enhancer_agent import audio_enhancer_agent
 from agents.diarization_agent import diarization_agent
 from agents.audio_transcriber import audio_transcriber_agent
@@ -70,6 +71,7 @@ class AppState(TypedDict):
     enhance_audio: bool
     speaker_timestamps: List[dict]
     speaker_transcripts: List[dict]
+    profanity_detected: bool
 
 # Build the graph
 workflow = StateGraph(AppState)
@@ -77,12 +79,26 @@ workflow = StateGraph(AppState)
 workflow.add_node("enhancer", audio_enhancer_agent)
 workflow.add_node("diarizer", diarization_agent)
 workflow.add_node("transcriber", audio_transcriber_agent)
+workflow.add_node("profanity_checker", profanity_agent)
 workflow.add_node("splitter", question_splitter_agent)
 workflow.add_node("generator", answer_generator_agent)
 
 workflow.add_edge("enhancer", "diarizer")
 workflow.add_edge("diarizer", "transcriber")
-workflow.add_edge("transcriber", "splitter")
+workflow.add_edge("transcriber", "profanity_checker")
+
+
+def check_profanity(state: AppState):
+    if state.get("profanity_detected"):
+        return END
+    return "splitter"
+
+workflow.add_conditional_edges(
+    "profanity_checker",
+    check_profanity,
+    {END: END, "splitter": "splitter"}
+)
+
 workflow.add_conditional_edges(
     "splitter",
     lambda state: "generator" if state.get("questions") else END,
@@ -125,6 +141,10 @@ def main():
 
         # Run the pipeline
         final_state = app.invoke(initial_state)
+
+        if final_state.get("profanity_detected"):
+            print("Offensive language detected in the audio. Please revise the audio.")
+            return
 
         if not final_state.get("questions"):
             print("No valid questions found in the audio.")
