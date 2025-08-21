@@ -3,6 +3,7 @@ import os
 from fpdf import FPDF
 import jsonschema
 from utils.exceptions import InvalidOutputFormatError
+from tools.latex_utils import latex_to_unicode
 
 # Load the output schema
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), '..', 'schemas', 'output_schema.json')
@@ -70,16 +71,18 @@ def save_as_pdf(data: dict, output_path: str):
     pdf.add_page()
     pdf.cell(page_width, 10, txt="Questions", ln=True, align='C')
     for q in data["questions"]:
-        question_text = f"ID: {q['id']}\nQuestion: {q['question']}"
+        # Convert LaTeX to Unicode for PDF output
+        question_text = f"ID: {q['id']}\nQuestion: {latex_to_unicode(q['question'])}"
         pdf.multi_cell(page_width, 10, txt=write_to_pdf(question_text))
         pdf.ln()
 
     pdf.add_page()
     pdf.cell(page_width, 10, txt="Answers", ln=True, align='C')
     for a in data["answers"]:
-        answer_text = f"QID: {a['qid']}\nAnswer: {a['answer']}"
+        # Convert LaTeX to Unicode for PDF output
+        answer_text = f"QID: {a['qid']}\nAnswer: {latex_to_unicode(a['answer'])}"
         pdf.multi_cell(page_width, 10, txt=write_to_pdf(answer_text))
         pdf.ln()
-        
+    
     pdf.output(output_path)
     print(f"Saved PDF output to {output_path}")

@@ -57,6 +57,8 @@ from agents.profanity_agent import profanity_agent
 from agents.audio_enhancer_agent import audio_enhancer_agent
 from agents.diarization_agent import diarization_agent
 from agents.audio_transcriber import audio_transcriber_agent
+from tools.asr_math_pipeline import transcribe_audio_whisper, normalize_math_llm
+from tools.math_utils import normalize_math_phrases, parse_equation, solve_equation, compute_derivative, compute_integral, to_latex
 from agents.question_splitter import question_splitter_agent
 from agents.answer_generator import answer_generator_agent
 from .output_utils import save_as_json, save_as_text, save_as_pdf
@@ -80,29 +82,21 @@ workflow.add_node("enhancer", audio_enhancer_agent)
 workflow.add_node("diarizer", diarization_agent)
 workflow.add_node("transcriber", audio_transcriber_agent)
 workflow.add_node("profanity_checker", profanity_agent)
-workflow.add_node("splitter", question_splitter_agent)
-workflow.add_node("generator", answer_generator_agent)
 
+workflow.add_node("generator", answer_generator_agent)
 workflow.add_edge("enhancer", "diarizer")
 workflow.add_edge("diarizer", "transcriber")
 workflow.add_edge("transcriber", "profanity_checker")
 
-
 def check_profanity(state: AppState):
     if state.get("profanity_detected"):
         return END
-    return "splitter"
+    return "generator"
 
 workflow.add_conditional_edges(
     "profanity_checker",
     check_profanity,
-    {END: END, "splitter": "splitter"}
-)
-
-workflow.add_conditional_edges(
-    "splitter",
-    lambda state: "generator" if state.get("questions") else END,
-    {"generator": "generator", END: END}
+    {END: END, "generator": "generator"}
 )
 workflow.add_edge("generator", END)
 
@@ -130,24 +124,68 @@ def main():
     try:
         validate_audio_file(args.audio_file)
 
+        # --- ASR: Transcribe audio to text using Whisper ---
+        transcript = transcribe_audio_whisper(args.audio_file)
+
+        # --- Math Normalization: Use Gemini LLM and regex/rules ---
+        math_normalized = normalize_math_llm(transcript)
+        math_normalized, math_found = normalize_math_phrases(math_normalized)
+
+        # --- (Optional) Math Parsing/Solving: Use SymPy if math detected ---
+        math_results = {}
+        if math_found:
+            eq = parse_equation(math_normalized)
+            if eq is not None:
+                # Try to solve for main variable (guess 't' or 'x')
+                for var in ['t', 'x']:
+                    sol = solve_equation(eq, var)
+                    if sol:
+                        math_results['solution'] = sol
+                        break
+                # Try derivative and integral if it's an expression
+                if hasattr(eq, 'lhs') and hasattr(eq, 'rhs'):
+                    expr = eq.lhs - eq.rhs
+                else:
+                    expr = eq
+                deriv = compute_derivative(str(expr))
+                integ = compute_integral(str(expr))
+                if deriv is not None:
+                    math_results['derivative'] = to_latex(deriv)
+                if integ is not None:
+                    math_results['integral'] = to_latex(integ)
+
+
         # Prepare initial state and output path
         initial_state = {
             "audio_file": args.audio_file,
             "language": args.language,
-            "enhance_audio": args.enhance_audio
+            "enhance_audio": args.enhance_audio,
+            "transcript": math_normalized,
         }
         output_filename = os.path.splitext(os.path.basename(args.audio_file))[0]
         output_path = f"outputs/{output_filename}.{args.output_format}"
 
-        # Run the pipeline
+        # Run the pipeline (diarization, profanity, then generator/LLM full-context answer)
         final_state = app.invoke(initial_state)
+
+        # Attach math results if available
+        if math_results:
+            final_state['math_results'] = math_results
+
+        # Extract questions from the LLM's output (answers)
+        if "answers" in final_state and final_state["answers"]:
+            # Each answer should have 'question' and 'answer' fields
+            final_state["questions"] = [
+                {"id": a["qid"], "question": a.get("question", "")}
+                for a in final_state["answers"] if a.get("question")
+            ]
 
         if final_state.get("profanity_detected"):
             print("Offensive language detected in the audio. Please revise the audio.")
             return
 
-        if not final_state.get("questions"):
-            print("No valid questions found in the audio.")
+        if not final_state.get("answers"):
+            print("No valid answers found in the audio.")
             return
 
         # Save the output
