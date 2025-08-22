@@ -121,28 +121,65 @@ def main():
     parser.add_argument("--enhance-audio", action="store_true", help="Enhance the audio before transcription to improve quality.")
     args = parser.parse_args()
 
+    import time
+    import pickle
+    MAX_RETRIES = 3
+    RETRY_DELAY = 5
+    transcript = None
+    math_normalized = None
+    math_found = False
+    math_results = {}
+    output_filename = os.path.splitext(os.path.basename(args.audio_file))[0]
+    output_path = f"outputs/{output_filename}.{args.output_format}"
+    transcript_cache_path = f"cache/{output_filename}.transcript.pkl"
+    answer_cache_path = f"cache/{output_filename}.answers.pkl"
     try:
         validate_audio_file(args.audio_file)
 
         # --- ASR: Transcribe audio to text using Whisper ---
-        transcript = transcribe_audio_whisper(args.audio_file)
+        if os.path.exists(transcript_cache_path):
+            with open(transcript_cache_path, 'rb') as f:
+                transcript = pickle.load(f)
+            print("Loaded cached transcript.")
+        else:
+            for attempt in range(MAX_RETRIES):
+                try:
+                    transcript = transcribe_audio_whisper(args.audio_file)
+                    with open(transcript_cache_path, 'wb') as f:
+                        pickle.dump(transcript, f)
+                    break
+                except Exception as e:
+                    print(f"Transcription failed (attempt {attempt+1}/{MAX_RETRIES}): {e}")
+                    if attempt == MAX_RETRIES-1:
+                        print("Transcription failed after retries. Exiting.")
+                        sys.exit(1)
+                    time.sleep(RETRY_DELAY)
 
         # --- Math Normalization: Use Gemini LLM and regex/rules ---
-        math_normalized = normalize_math_llm(transcript)
-        math_normalized, math_found = normalize_math_phrases(math_normalized)
+        for attempt in range(MAX_RETRIES):
+            try:
+                math_normalized = normalize_math_llm(transcript)
+                math_normalized, math_found = normalize_math_phrases(math_normalized)
+                break
+            except Exception as e:
+                if 'quota' in str(e).lower() or 'rate limit' in str(e).lower():
+                    print("LLM API quota exceeded. Please try again later or check your API limits.")
+                    sys.exit(1)
+                print(f"Math normalization failed (attempt {attempt+1}/{MAX_RETRIES}): {e}")
+                if attempt == MAX_RETRIES-1:
+                    print("Math normalization failed after retries. Exiting.")
+                    sys.exit(1)
+                time.sleep(RETRY_DELAY)
 
         # --- (Optional) Math Parsing/Solving: Use SymPy if math detected ---
-        math_results = {}
         if math_found:
             eq = parse_equation(math_normalized)
             if eq is not None:
-                # Try to solve for main variable (guess 't' or 'x')
                 for var in ['t', 'x']:
                     sol = solve_equation(eq, var)
                     if sol:
                         math_results['solution'] = sol
                         break
-                # Try derivative and integral if it's an expression
                 if hasattr(eq, 'lhs') and hasattr(eq, 'rhs'):
                     expr = eq.lhs - eq.rhs
                 else:
@@ -154,7 +191,6 @@ def main():
                 if integ is not None:
                     math_results['integral'] = to_latex(integ)
 
-
         # Prepare initial state and output path
         initial_state = {
             "audio_file": args.audio_file,
@@ -162,11 +198,29 @@ def main():
             "enhance_audio": args.enhance_audio,
             "transcript": math_normalized,
         }
-        output_filename = os.path.splitext(os.path.basename(args.audio_file))[0]
-        output_path = f"outputs/{output_filename}.{args.output_format}"
 
         # Run the pipeline (diarization, profanity, then generator/LLM full-context answer)
-        final_state = app.invoke(initial_state)
+        final_state = None
+        if os.path.exists(answer_cache_path):
+            with open(answer_cache_path, 'rb') as f:
+                final_state = pickle.load(f)
+            print("Loaded cached answers.")
+        else:
+            for attempt in range(MAX_RETRIES):
+                try:
+                    final_state = app.invoke(initial_state)
+                    with open(answer_cache_path, 'wb') as f:
+                        pickle.dump(final_state, f)
+                    break
+                except Exception as e:
+                    if 'quota' in str(e).lower() or 'rate limit' in str(e).lower():
+                        print("LLM API quota exceeded. Please try again later or check your API limits.")
+                        sys.exit(1)
+                    print(f"Answer generation failed (attempt {attempt+1}/{MAX_RETRIES}): {e}")
+                    if attempt == MAX_RETRIES-1:
+                        print("Answer generation failed after retries. Exiting.")
+                        sys.exit(1)
+                    time.sleep(RETRY_DELAY)
 
         # Attach math results if available
         if math_results:
@@ -174,7 +228,6 @@ def main():
 
         # Extract questions from the LLM's output (answers)
         if "answers" in final_state and final_state["answers"]:
-            # Each answer should have 'question' and 'answer' fields
             final_state["questions"] = [
                 {"id": a["qid"], "question": a.get("question", "")}
                 for a in final_state["answers"] if a.get("question")
@@ -205,6 +258,3 @@ def main():
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
         sys.exit(1)
-
-if __name__ == "__main__":
-    main()
