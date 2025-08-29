@@ -10,7 +10,7 @@ def invoke_llm(prompt_path: str, llm_input: dict) -> str:
     Invokes the Gemini API with a prompt and input.
     """
     print(f"Invoking LLM with prompt: {prompt_path}")
-    with open(prompt_path, "r") as f:
+    with open(prompt_path, "r", encoding="utf-8") as f:
         prompt_template = f.read()
     
     prompt = prompt_template.format(**llm_input)
