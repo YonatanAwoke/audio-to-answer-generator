@@ -22,6 +22,14 @@ The project is organized into the following directories:
 - **tools**: Contains various utility functions and tools used by the pipeline, such as ASR, math equation solvers, and profanity filters.
 - **utils**: Contains utility functions for the project.
 
+- ## Features
+
+*   **Audio Transcription:** Transcribes audio files using Whisper.
+*   **Question & Answer Generation:** Generates answers to questions found in the transcript using a Large Language Model.
+*   **Math Problem Solving:** Can solve mathematical equations found in the transcript.
+*   **Performance Evaluation:** Evaluates the performance of the question-answering system.
+*   **Human-in-the-Loop Feedback:** Allows users to provide feedback on the generated answers to improve the system's accuracy.
+
 ## System Scope and Limitation
 
 ### Scope
@@ -33,6 +41,8 @@ The project is organized into the following directories:
 -   Identify different speakers in the audio.
 -   Recognize and solve mathematical equations.
 -   Output results in JSON, text, or PDF format.
+-   Evaluate performance of the expected output and the original output
+-   Feedback on generated answers which can be fine-tune the model for better accuracy
 
 ### Limitations
 
@@ -48,12 +58,34 @@ To use the Audio-to-Answer Generator, run the following command:
 python main.py <audio_file_path> [--output_format <format>] [--language <lang>] [--enhance-audio]
 ```
 
+To run the evaluation, use the following command:
+
+```bash
+pytest tests/test_evaluation.py
+```
+
+To use the feedback mechanism, run the pipeline with the `--feedback` flag:
+
+```bash
+python -m orchestration.pipeline <audio_file_path> --feedback
+```
+
+For each generated answer, you will be prompted to provide feedback:
+
+*   Enter `c` if the answer is correct.
+*   Enter `r` if the answer needs revision.
+
+If you choose to revise the answer, you will be prompted to enter the corrected answer.
+
+The feedback will be saved to a JSON file in the `feedback` directory.
+
 ### Arguments
 
 -   `audio_file_path`: Path to the audio file to process.
 -   `--output_format`: Desired output format (`json`, `text`, or `pdf`). Defaults to `json`.
 -   `--language`: Language of the audio file (e.g., 'en', 'es'). If not provided, the language will be auto-detected.
 -   `--enhance-audio`: Enhance the audio before transcription to improve quality.
+-   * `--feedback`: Enable the human-in-the-loop feedback mechanism.
 
 ## Project Components
 
