@@ -1,0 +1,14 @@
+[
+    {
+        "question": "What is afforestation?",
+        "original_answer": "Afforestation is the establishment of forests or stands of trees in areas where there was no previous tree cover.  This is in contrast to reforestation, which involves restoring forests in areas where they previously existed.",
+        "feedback_type": "c",
+        "revised_answer": null
+    },
+    {
+        "question": "What is the difference between afforestation and reforestation?",
+        "original_answer": "Afforestation is the establishment of forests on land that has not been forested for a considerable period, while reforestation is the re-establishment of forests on land that has been deforested.  The key difference lies in the prior existence of forest cover. Afforestation creates new forests where none existed, whereas reforestation restores forests to areas where they were previously present.",
+        "feedback_type": "r",
+        "revised_answer": "this is the revised answer"
+    }
+]

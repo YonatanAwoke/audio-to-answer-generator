@@ -61,7 +61,7 @@ from tools.asr_math_pipeline import transcribe_audio_whisper, normalize_math_llm
 from tools.math_utils import normalize_math_phrases, parse_equation, solve_equation, compute_derivative, compute_integral, to_latex
 from agents.question_splitter import question_splitter_agent
 from agents.answer_generator import answer_generator_agent
-from .output_utils import save_as_json, save_as_text, save_as_pdf
+from orchestration.output_utils import save_as_json, save_as_text, save_as_pdf
 
 class AppState(TypedDict):
     audio_file: str
@@ -108,6 +108,8 @@ workflow.set_conditional_entry_point(should_enhance)
 app = workflow.compile()
 
 def main():
+    from dotenv import load_dotenv
+    load_dotenv()
     from huggingface_hub import login
     hf_token = os.getenv("HF_TOKEN")
     if hf_token:
@@ -119,20 +121,36 @@ def main():
     parser.add_argument("--output_format", choices=["json", "text", "pdf"], default="json", help="Desired output format.")
     parser.add_argument("--language", help="Language of the audio file (e.g., 'en', 'es'). If not provided, language will be auto-detected.")
     parser.add_argument("--enhance-audio", action="store_true", help="Enhance the audio before transcription to improve quality.")
+    parser.add_argument("--feedback", action="store_true", help="Enable human-in-the-loop feedback.")
     args = parser.parse_args()
 
     import time
     import pickle
+    import json
+
+    # Create feedback directory if it doesn't exist
+    feedback_dir = "feedback"
+    os.makedirs(feedback_dir, exist_ok=True)
+
     MAX_RETRIES = 3
     RETRY_DELAY = 5
     transcript = None
     math_normalized = None
     math_found = False
     math_results = {}
-    output_filename = os.path.splitext(os.path.basename(args.audio_file))[0]
+    # Expect job_id and audio_hash as env vars for output naming
+    job_id = os.environ.get("JOB_ID")
+    audio_hash = os.environ.get("AUDIO_HASH")
+    output_filename = None
+    if job_id and audio_hash:
+        output_filename = f"{job_id}_{audio_hash}"
+    else:
+        output_filename = os.path.splitext(os.path.basename(args.audio_file))[0]
     output_path = f"outputs/{output_filename}.{args.output_format}"
     transcript_cache_path = f"cache/{output_filename}.transcript.pkl"
     answer_cache_path = f"cache/{output_filename}.answers.pkl"
+    feedback_path = f"feedback/{output_filename}.json"
+
     try:
         validate_audio_file(args.audio_file)
 
@@ -241,13 +259,35 @@ def main():
             print("No valid answers found in the audio.")
             return
 
-        # Save the output
-        if args.output_format == "json":
-            save_as_json(final_state, output_path)
-        elif args.output_format == "text":
-            save_as_text(final_state, output_path)
-        elif args.output_format == "pdf":
-            save_as_pdf(final_state, output_path)
+        # Human-in-the-loop feedback
+        if args.feedback:
+            feedbacks = []
+            for i, answer in enumerate(final_state["answers"]):
+                print("\n--------------------------------------------------")
+                print(f"Question: {answer.get('question', 'N/A')}")
+                print(f"Generated Answer: {answer.get('answer', 'N/A')}")
+                print("--------------------------------------------------")
+                feedback_type = input("Is this answer correct? (c)orrect / (r)evised: ").lower()
+                while feedback_type not in ['c', 'r']:
+                    feedback_type = input("Invalid input. Please enter 'c' for correct or 'r' for revised: ").lower()
+
+                feedback_data = {
+                    "question": answer.get('question', 'N/A'),
+                    "original_answer": answer.get('answer', 'N/A'),
+                    "feedback_type": feedback_type,
+                    "revised_answer": None
+                }
+
+                if feedback_type == 'r':
+                    revised_answer = input("Please enter the revised answer: ")
+                    final_state["answers"][i]["answer"] = revised_answer
+                    feedback_data["revised_answer"] = revised_answer
+                
+                feedbacks.append(feedback_data)
+
+            with open(feedback_path, 'w') as f:
+                json.dump(feedbacks, f, indent=4)
+            print(f"\nFeedback saved to {feedback_path}")
 
     except FileNotFoundError as e:
         print(f"Error: {e}")
@@ -258,3 +298,6 @@ def main():
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
         sys.exit(1)
+
+if __name__ == "__main__":
+    main()
