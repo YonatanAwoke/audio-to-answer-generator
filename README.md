@@ -85,7 +85,7 @@ The feedback will be saved to a JSON file in the `feedback` directory.
 -   `--output_format`: Desired output format (`json`, `text`, or `pdf`). Defaults to `json`.
 -   `--language`: Language of the audio file (e.g., 'en', 'es'). If not provided, the language will be auto-detected.
 -   `--enhance-audio`: Enhance the audio before transcription to improve quality.
--   * `--feedback`: Enable the human-in-the-loop feedback mechanism.
+-   `--feedback`: Enable the human-in-the-loop feedback mechanism.
 
 ## Project Components
 
